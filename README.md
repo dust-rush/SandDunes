@@ -9,6 +9,21 @@
 
 <p>In general, your learning curve will be very low, as your goal is to be simple and friendly to new developers both as users or contributors. </p>
 
+<h3>[⚡] — Quick Start</h3>
+
+```js
+/* services/database.js */
+
+const SandDunes = require('dunes')
+const database = new SandDunes.default()
+
+database.init().then(() => {
+    database.create('User', {
+        name: 'John Doe'
+    }) // > { _ref: ColumnReferenceUUID, fields: { _ref: ColumnReferenceUUID, name: 'John Doe' } }
+})
+```
+
 <hr />
 
 <h4>[🔺] — You can contribute to the growth of this library, just pay attention to the commit patterns that will be configured soon. Okay?</h4>

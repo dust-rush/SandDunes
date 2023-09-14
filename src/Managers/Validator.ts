@@ -35,8 +35,8 @@ export const SchemaValidator = (schema: any, input: any, ORMInstance: any) => {
 
         if (value && !column.test(value)) {
             response.valid = false
-            response.error = `Column "${columnName}" types does not match types in model at schema.dune`
-            response.cause = 'TYPE COLUMN INCOMPATIBLE'
+            response.error = `Column "${columnName}" types does not match "${column.type}" type.`
+            response.cause = 'COLUMN TYPE INCOMPATIBLE'
 
             return response
         }

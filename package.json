@@ -1,7 +1,7 @@
 {
     "name": "dunes",
     "description": "Database based on columns and tables created to be simple but useful and efficient in testing, development and production environments.",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "main": "dist/main.js",
     "license": "LGPL-3.0-only",
     "devDependencies": {
@@ -32,5 +32,8 @@
         "build": "tsc",
         "publish": "npm run build && npm publish",
         "publish-dry-run": "npm run build && npm publish --dry-run"
+    },
+    "dependencies": {
+        "dunes": "^0.1.0"
     }
 }

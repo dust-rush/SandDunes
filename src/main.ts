@@ -143,7 +143,7 @@ class SandDunes {
 
     sync(table: string, data?: string) {
         const selectedTable = this.tables[table]
-        writeFileSync(`${process.cwd()}/Dunes/tables/${table}.dust`, data || ExportTableToDustFile(selectedTable.values(), this.indentSize))
+        writeFileSync(`${process.cwd()}/dunes/tables/${table}.dust`, data || ExportTableToDustFile(selectedTable.values(), this.indentSize))
 
         return true
     }
@@ -166,7 +166,12 @@ class SandDunes {
         }
     }
 
-    private async ReadSchema(fileName: string, path = `${process.cwd()}/Dunes`) {
+    private async ReadSchema(fileName: string, path = `${process.cwd()}/dunes`) {
+        if (!Exists(path)) {
+            mkdirSync(path)
+            writeFileSync(`${path}/schema.dune`, 'model("User", {\n  name: String,\n  email: Unique<EmailAddress>\n});')
+        }
+
         const exists = Exists(`${path}/${fileName.endsWith('.dune') ? fileName : (fileName + '.dune')}`)
 
         if (!exists) {
@@ -177,7 +182,7 @@ class SandDunes {
         return (ParseModels(dusts))
     }
 
-    private async PrepareTables(models: Model[], path = `${process.cwd()}/Dunes`) {
+    private async PrepareTables(models: Model[], path = `${process.cwd()}/dunes`) {
         try {
             if (!Exists(`${path}/tables/`)) {
                 mkdirSync(`${path}/tables/`)
