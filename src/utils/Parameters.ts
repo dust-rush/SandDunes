@@ -9,9 +9,7 @@ const RequiredParam = (paramOptions: RequiredParamOptions, input: unknown, error
         ? response.passed = false
         : null
 
-    if (typeof input != paramOptions.type && paramOptions.throwOnError) {
-        throw new Error(errorMessage)
-    }
+    if (typeof input != paramOptions.type && paramOptions.throwOnError) throw new Error(errorMessage)
 
     return response
 }

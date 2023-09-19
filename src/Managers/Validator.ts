@@ -1,17 +1,24 @@
-export const SchemaValidator = (schema: any, input: any, ORMInstance: any) => {
+import SandDunes from 'main'
+import * as Types from '../types'
+
+export const SchemaValidator = async (schema: Types.Model | undefined, input: any, ORMInstance: SandDunes): Promise<{ valid: boolean, error?: string, cause?: string }> => {
+    console.log(schema)
+    console.log('===========')
+    console.log(input)
     if (typeof input !== 'object' || typeof schema !== 'object') {
         throw new Error('Both Input and Schema must be objects');
     }
+
 
     let response: {
         valid: boolean,
         error?: string,
         cause?: string
     } = {
-        valid: true,
+        valid: true
     }
 
-    const refExists = Boolean(ORMInstance.findByRef(schema.name, input._ref))
+    const refExists = Boolean(await ORMInstance.findByRef(schema.name, input._ref))
 
     if (refExists) {
         response.valid = false
@@ -43,7 +50,7 @@ export const SchemaValidator = (schema: any, input: any, ORMInstance: any) => {
 
         const exists = (
             column.unique
-                ? ORMInstance.findWhere(schema.name, {
+                ? await ORMInstance.findWhere(schema.name, {
                     [columnName]: value
                 })
                 : null

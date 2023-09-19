@@ -1,13 +1,25 @@
 export interface Model {
     name: string,
     columns: {
-        [column: string]: {
-            type: string, test: Function
+        [column: PropertyKey]: {
+            type: string,
+            required: boolean,
+            unique: boolean,
+            list: boolean,
+            test: Function
         }
     }
 }
 
+export interface Column {
+    _ref: string,
+    fields: {
+        [field: PropertyKey]: unknown
+    }
+}
+
 export interface SandDunesOptions {
+    name?: string,
     indentSize?: number,
     updateCanCreate?: boolean
 }

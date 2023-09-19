@@ -2,148 +2,225 @@ import { mkdirSync, writeFileSync } from 'fs'
 import { randomUUID } from 'crypto'
 
 import Queue from './Managers/Queue'
-import { ParseModels } from './Managers/Schema'
+import * as SchemaManager from './Managers/Schema'
 import { SchemaValidator } from './Managers/Validator'
-import { DeleteColumn, ExportTableToDustFile, ParseTable } from './Managers/Table'
+import * as TableManager from './Managers/Table'
 
 import { Exists, ReadFileAsync } from './utils/FileReader'
 import { RequiredParam } from './utils/Parameters'
 
-import { Model, SandDunesOptions } from './types'
+import * as Types from './types'
+import ExistsTable from './utils/ExistsTable'
 
 class SandDunes {
-    isReady: boolean
-    queue: Queue
-
-    models: Map<string, Model>
-    tables: {
-        [name: string]: Map<string, unknown>
-    }
-
+    name?: string
     indentSize: number
     updateCanCreate: boolean
 
-    constructor(options: SandDunesOptions = { updateCanCreate: false, indentSize: 0 }) {
-        this.isReady = false
-        this.queue = new Queue()
+    isReady: boolean
+    queue: Queue
+    models: Map<PropertyKey, Types.Model>
+    tables: {
+        [name: PropertyKey]: Map<PropertyKey, Types.Column>
+    }
 
-        this.models = new Map()
-        this.tables = {}
-
+    constructor(options: Types.SandDunesOptions = { updateCanCreate: false, indentSize: 0 }) {
+        this.name = options.name
         this.indentSize = options.indentSize || 0
         this.updateCanCreate = Boolean(options.updateCanCreate)
+
+        this.isReady = false
+        this.queue = new Queue()
+        this.models = new Map()
+        this.tables = {}
     }
 
-    create(table: string, data?: any): boolean | {
+    create(table: string, data?: unknown): Promise<{
         _ref: string,
         fields: unknown
-    } {
-        RequiredParam({ name: 'table', type: 'string', throwOnError: true }, table, 'Param "table" Is required.')
+    }> {
+        return new Promise(async (resolve, reject) => {
+            RequiredParam({ name: 'table', type: 'string', throwOnError: true }, table, 'Param "table" Is required.')
 
-        if (!data) {
-            throw new Error(`You need to provide the data to save in "${table}".`)
-        }
+            if (!ExistsTable(this, table)) {
+                throw new Error(`Table "${table}" not exists.`)
+            }
 
-        if (!this.isReady) {
-            this.queue.add(() => {
-                this.create(table, data)
-            })
+            if (!data) {
+                throw new Error(`You need to provide the data to save in "${table}".`)
+            }
 
-            return true
-        }
+            if (!this.isReady) {
+                this.queue.add(async () => {
+                    resolve(await this.create(table, data))
+                })
 
-        const _ref = data?._ref || randomUUID()
-        const columnData = {
-            _ref,
-            fields: {
+                return
+            }
+
+            const _ref = randomUUID()
+            const columnData = {
                 _ref,
-                ...data
+                fields: {
+                    _ref,
+                    ...data
+                }
             }
-        }
 
-        const selectedTable = this.tables[table]
-        const authorization = SchemaValidator(this.models.get(table), columnData.fields, this)
+            const selectedTable = this.tables[table]
+            const authorization = await SchemaValidator(this.models.get(table), columnData.fields, this)
 
-        if (!authorization.valid) {
-            throw new Error(authorization?.error, {
-                cause: authorization.cause,
+            if (!authorization.valid) {
+                throw new Error(authorization?.error, {
+                    cause: authorization.cause,
+                })
+            }
+
+            selectedTable.set(_ref, columnData)
+
+            this.sync(table)
+
+            resolve({
+                _ref,
+                fields: {
+                    ...data
+                }
             })
-        }
+        })
+    }
 
-        selectedTable.set(_ref, columnData)
+    update(table: string, where: object, newData: object) {
+        return new Promise(async (resolve, reject) => {
+            RequiredParam({ name: 'table', type: 'string', throwOnError: true }, table, 'Param "table" Is required.')
+            RequiredParam({ name: 'where', type: 'object', throwOnError: true }, where, 'You need to provide the where function to update old data.')
 
-        this.sync(table)
-
-        return {
-            _ref,
-            fields: {
-                ...data
+            if (!ExistsTable(this, table)) {
+                throw new Error(`${table} not exists.`)
             }
-        }
+
+            if (!this.isReady) {
+                this.queue.add(async () => {
+                    resolve(await this.update(table, where, newData))
+                })
+
+                return
+            }
+
+            const actualData = this.findWhere(table, where)
+
+            if (!actualData && !this.updateCanCreate) {
+                throw new Error(`None exists any column with provided where function in ${table} table`)
+            }
+
+            resolve(await this.create(table, Object.assign(actualData, newData)))
+        })
     }
 
-    async update(table: string, where: object | any, newData: unknown) {
-        RequiredParam({ name: 'table', type: 'string', throwOnError: true }, table, 'Param "table" Is required.')
-        RequiredParam({ name: 'where', type: 'object', throwOnError: true }, where, 'You need to provide the where function to update old data.')
+    findByRef(table: string, reference: string): Promise<unknown> {
+        return new Promise((resolve, reject) => {
+            RequiredParam({ name: 'table', type: 'string', throwOnError: true }, table, 'Param "table" Is required.')
+            RequiredParam({ name: 'ColumnReferenceID', type: 'string', throwOnError: true }, reference, 'Param "reference" Is required to find data.')
 
-        const actualData = this.findWhere(table, where)
+            if (!ExistsTable(this, table)) {
+                throw new Error(`${table} not exists.`)
+            }
 
-        if (!actualData && !this.updateCanCreate) {
-            throw new Error(`None exists any column with provided where function in ${table} table`)
-        }
+            if (!this.isReady) {
+                this.queue.add(async () => {
+                    resolve(await this.findByRef(table, reference))
+                })
 
-        return (this.create(table, Object.assign(actualData, newData)))
+                return
+            }
+
+            resolve(this.tables[table].get(reference))
+        })
     }
 
-    findByRef(table: string, reference: string) {
-        RequiredParam({ name: 'table', type: 'string', throwOnError: true }, table, 'Param "table" Is required.')
-        RequiredParam({ name: 'ColumnReferenceID', type: 'string', throwOnError: true }, reference, 'Param "reference" Is required to find data.')
+    findWhere(table: string, where: object): Promise<Types.Column | undefined> {
+        return new Promise((resolve, reject) => {
+            RequiredParam({ name: 'table', type: 'string', throwOnError: true }, table, 'Param "table" Is required.')
+            RequiredParam({ name: 'where', type: 'object', throwOnError: true }, where, 'You need to provide the where function to find data.')
 
-        return (this.tables[table].get(reference))
-    }
+            if (!ExistsTable(this, table)) {
+                throw new Error(`${table} not exists.`)
+            }
 
-    findWhere(table: string, where: object | any): any {
-        RequiredParam({ name: 'table', type: 'string', throwOnError: true }, table, 'Param "table" Is required.')
-        RequiredParam({ name: 'where', type: 'object', throwOnError: true }, where, 'You need to provide the where function to find data.')
+            if (!this.isReady) {
+                this.queue.add(async () => {
+                    resolve(await this.findWhere(table, where))
+                })
 
-        const selectedTable = this.tables[table]
-        const arrayOfTable = Array.from(selectedTable.values())
+                return
+            }
 
-        return (arrayOfTable.find((column: any, index) => {
-            const whereKey = Object.keys(where)[0]
+            const selectedTable = this.tables[table]
+            const arrayOfTable = Array.from(selectedTable.values())
+            const response = arrayOfTable.find((column) => {
+                const whereKey = Object.keys(where)[0]
 
-            return column.fields[whereKey] == where[whereKey]
-                ? true
-                : false
-        }))
+                return column.fields[whereKey] == where[whereKey as keyof PropertyKey]
+                    ? true
+                    : false
+            })
+
+            resolve(response)
+        })
+
+
     }
 
     findMany(table: string) {
-        RequiredParam({ name: 'table', type: 'string', throwOnError: true }, table, 'Param "table" Is required.')
+        return new Promise((resolve, reject) => {
+            RequiredParam({ name: 'table', type: 'string', throwOnError: true }, table, 'Param "table" Is required.')
 
-        return (Object.fromEntries(this.tables[table].entries()))
+            if (!ExistsTable(this, table)) {
+                throw new Error(`${table} not exists.`)
+            }
+
+            if (!this.isReady) {
+                this.queue.add(async () => {
+                    resolve(await this.findMany(table))
+                })
+
+                return
+            }
+
+            resolve(Object.fromEntries(this.tables[table].entries()))
+        })
     }
 
     drop(table: string, columnReferenceID: string) {
-        RequiredParam({ name: 'table', type: 'string', throwOnError: true }, table, 'Param "table" Is required.')
-        RequiredParam({ name: 'ColumnReferenceID', type: 'string', throwOnError: true }, columnReferenceID, 'Param "ColumnReferenceID" Is required to find data.')
+        return new Promise((resolve, reject) => {
+            RequiredParam({ name: 'table', type: 'string', throwOnError: true }, table, 'Param "table" Is required.')
+            RequiredParam({ name: 'ColumnReferenceID', type: 'string', throwOnError: true }, columnReferenceID, 'Param "ColumnReferenceID" Is required to find data.')
 
-        try {
+            if (!ExistsTable(this, table)) {
+                throw new Error(`${table} not exists.`)
+            }
+
             const selectedTable = this.tables[table]
+            const columnData = selectedTable.get(columnReferenceID)
 
-            const tableContentAfterDelete = DeleteColumn(columnReferenceID, selectedTable.values())
-            selectedTable.delete(columnReferenceID)
-            this.sync(table, tableContentAfterDelete)
+            if (!selectedTable || !columnData) {
+                reject('You need to provide a valid Table or valid ColumnID')
+            }
 
-            return true
-        } catch (error: any) {
-            throw new Error(error)
-        }
+            try {
+                const tableContentAfterDelete = TableManager.DeleteColumn(columnReferenceID, selectedTable.values())
+                selectedTable.delete(columnReferenceID)
+
+                this.sync(table, tableContentAfterDelete)
+                resolve(columnData)
+            } catch (error: any) {
+                reject(error?.message)
+            }
+        })
     }
 
     sync(table: string, data?: string) {
         const selectedTable = this.tables[table]
-        writeFileSync(`${process.cwd()}/dunes/tables/${table}.dust`, data || ExportTableToDustFile(selectedTable.values(), this.indentSize))
+        writeFileSync(`${process.cwd()}/dunes/${this.name ? `${this.name}/` : '/'}tables/${table}.dust`, data || TableManager.ExportTableToDustFile(selectedTable.values(), this.indentSize))
 
         return true
     }
@@ -166,23 +243,25 @@ class SandDunes {
         }
     }
 
-    private async ReadSchema(fileName: string, path = `${process.cwd()}/dunes`) {
+    private async ReadSchema(fileName: string, path = `${process.cwd()}/dunes${this.name ? `/${this.name}` : ''}`) {
         if (!Exists(path)) {
-            mkdirSync(path)
+            mkdirSync(path, {
+                recursive: true
+            })
             writeFileSync(`${path}/schema.dune`, 'model("User", {\n  name: String,\n  email: Unique<EmailAddress>\n});')
         }
 
-        const exists = Exists(`${path}/${fileName.endsWith('.dune') ? fileName : (fileName + '.dune')}`)
+        const exists = Exists(`${path}/${fileName.endsWith('.dune') ? fileName : `${fileName}.dust`}`)
 
         if (!exists) {
             throw new Error(`Schema not found, how about checking if It really exists?`)
         }
 
-        const dusts: any = await ReadFileAsync(`${path}/${fileName.endsWith('.dune') ? fileName : (fileName + '.dune')}`)
-        return (ParseModels(dusts))
+        const dusts: any = await ReadFileAsync(`${path}/${fileName.endsWith('.dune') ? fileName : `${fileName}.dust`}`)
+        return (SchemaManager.ParseModels(dusts))
     }
 
-    private async PrepareTables(models: Model[], path = `${process.cwd()}/dunes`) {
+    private async PrepareTables(models: Types.Model[], path = `${process.cwd()}/dunes/${this.name || ''}`) {
         try {
             if (!Exists(`${path}/tables/`)) {
                 mkdirSync(`${path}/tables/`)
@@ -195,7 +274,7 @@ class SandDunes {
                     const response = await ReadFileAsync(`${path}/tables/${model.name}.dust`)
 
                     typeof response == 'string'
-                        ? this.tables[model.name] = new Map(ParseTable(response))
+                        ? this.tables[model.name] = new Map(TableManager.ParseTable(response))
                         : null
                 } else {
                     this.tables[model.name] = new Map()
@@ -209,3 +288,11 @@ class SandDunes {
 }
 
 export default SandDunes
+
+export {
+    Types,
+    RequiredParam,
+    SchemaValidator,
+    TableManager,
+    SchemaManager
+}

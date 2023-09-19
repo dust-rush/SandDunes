@@ -11,13 +11,19 @@ const ParseColumns = (columns: Array<string>) => {
 
         const isRequired = type?.[1] == 'optional' ? false : true
         const isUnique = type?.[1] == 'unique' ? true : false
+        const isList = type?.[1] == 'list' ? true : false
+
+        const testFunction = isRequired
+            ? tests[type?.[2] || primitiveType]
+            : tests.optional(tests[type?.[2] || primitiveType])
 
         name && primitiveType
             ? response[name] = {
-                type: type?.[2] || primitiveType,
+                type: (type?.[2] || primitiveType),
                 required: isRequired,
                 unique: isUnique,
-                test: isRequired ? tests[type?.[2] || primitiveType] : tests.optional(tests[type?.[2] || primitiveType])
+                list: isList,
+                test: (isList ? tests.list(testFunction) : testFunction)
             }
             : null
     }

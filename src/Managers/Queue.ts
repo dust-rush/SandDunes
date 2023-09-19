@@ -14,11 +14,15 @@ class Queue extends Array<{ exec: Function, arguments: unknown | any }> {
 
     dump() {
         return new Promise((resolve, reject) => {
-            this.forEach(Item => {
-                Item.exec()
-            })
+            try {
+                this.forEach(Item => {
+                    Item.exec(...Item.arguments)
+                })
 
-            resolve(true)
+                resolve(true)
+            } catch (error) {
+                reject(error)
+            }
         })
     }
 }

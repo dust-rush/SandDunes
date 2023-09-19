@@ -11,6 +11,9 @@ const functions: {
     'number': (input: any) => {
         return typeof input == 'number' && !isNaN(input)
     },
+    'int': (input: any) => {
+        return typeof input == 'number' && !isNaN(input)
+    },
     'json': (input: any) => {
         if (typeof input !== 'string') {
             return false
@@ -39,11 +42,25 @@ const functions: {
     },
     'optional': (primitiveTypeTest: Function) => {
         return (input: any) => {
-            if (!input) {
-                return true
+            const result = primitiveTypeTest(input)
+            return input ? result : true
+        }
+    },
+    'list': (primitiveTypeTest: Function) => {
+        return (input: any) => {
+            if (!Array.isArray(input)) {
+                return false
             }
 
-            const result = primitiveTypeTest(input)
+            let result = true
+
+            for (const item in input) {
+                if (!primitiveTypeTest(item)) {
+                    result = false
+                    break
+                }
+            }
+
             return result
         }
     }

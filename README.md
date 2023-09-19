@@ -20,7 +20,8 @@ const database = new SandDunes.default()
 database.init().then(() => {
     database.create('User', {
         name: 'John Doe'
-    }) // > { _ref: ColumnReferenceUUID, fields: { _ref: ColumnReferenceUUID, name: 'John Doe' } }
+    }).then(console.log)
+    // > { _ref: ColumnReferenceUUID, fields: { _ref: ColumnReferenceUUID, name: 'John Doe' } }
 })
 ```
 
