@@ -42,20 +42,20 @@ class SandDunes {
         return new Promise(async (resolve, reject) => {
             RequiredParam({ name: 'table', type: 'string', throwOnError: true }, table, 'Param "table" Is required.')
 
-            if (!ExistsTable(this, table)) {
-                throw new Error(`Table "${table}" not exists.`)
-            }
-
-            if (!data) {
-                throw new Error(`You need to provide the data to save in "${table}".`)
-            }
-
             if (!this.isReady) {
                 this.queue.add(async () => {
                     resolve(await this.create(table, data))
                 })
 
                 return
+            }
+
+            if (!ExistsTable(this, table)) {
+                throw new Error(`Table "${table}" not exists.`)
+            }
+
+            if (!data) {
+                throw new Error(`You need to provide the data to save in "${table}".`)
             }
 
             const _ref = randomUUID()
@@ -94,16 +94,16 @@ class SandDunes {
             RequiredParam({ name: 'table', type: 'string', throwOnError: true }, table, 'Param "table" Is required.')
             RequiredParam({ name: 'where', type: 'object', throwOnError: true }, where, 'You need to provide the where function to update old data.')
 
-            if (!ExistsTable(this, table)) {
-                throw new Error(`${table} not exists.`)
-            }
-
             if (!this.isReady) {
                 this.queue.add(async () => {
                     resolve(await this.update(table, where, newData))
                 })
 
                 return
+            }
+
+            if (!ExistsTable(this, table)) {
+                throw new Error(`${table} not exists.`)
             }
 
             const actualData = this.findWhere(table, where)
@@ -121,16 +121,16 @@ class SandDunes {
             RequiredParam({ name: 'table', type: 'string', throwOnError: true }, table, 'Param "table" Is required.')
             RequiredParam({ name: 'ColumnReferenceID', type: 'string', throwOnError: true }, reference, 'Param "reference" Is required to find data.')
 
-            if (!ExistsTable(this, table)) {
-                throw new Error(`${table} not exists.`)
-            }
-
             if (!this.isReady) {
                 this.queue.add(async () => {
                     resolve(await this.findByRef(table, reference))
                 })
 
                 return
+            }
+
+            if (!ExistsTable(this, table)) {
+                throw new Error(`${table} not exists.`)
             }
 
             resolve(this.tables[table].get(reference))
@@ -142,16 +142,16 @@ class SandDunes {
             RequiredParam({ name: 'table', type: 'string', throwOnError: true }, table, 'Param "table" Is required.')
             RequiredParam({ name: 'where', type: 'object', throwOnError: true }, where, 'You need to provide the where function to find data.')
 
-            if (!ExistsTable(this, table)) {
-                throw new Error(`${table} not exists.`)
-            }
-
             if (!this.isReady) {
                 this.queue.add(async () => {
                     resolve(await this.findWhere(table, where))
                 })
 
                 return
+            }
+
+            if (!ExistsTable(this, table)) {
+                throw new Error(`${table} not exists.`)
             }
 
             const selectedTable = this.tables[table]
@@ -174,16 +174,16 @@ class SandDunes {
         return new Promise((resolve, reject) => {
             RequiredParam({ name: 'table', type: 'string', throwOnError: true }, table, 'Param "table" Is required.')
 
-            if (!ExistsTable(this, table)) {
-                throw new Error(`${table} not exists.`)
-            }
-
             if (!this.isReady) {
                 this.queue.add(async () => {
                     resolve(await this.findMany(table))
                 })
 
                 return
+            }
+
+            if (!ExistsTable(this, table)) {
+                throw new Error(`${table} not exists.`)
             }
 
             resolve(Object.fromEntries(this.tables[table].entries()))
@@ -194,6 +194,14 @@ class SandDunes {
         return new Promise((resolve, reject) => {
             RequiredParam({ name: 'table', type: 'string', throwOnError: true }, table, 'Param "table" Is required.')
             RequiredParam({ name: 'ColumnReferenceID', type: 'string', throwOnError: true }, columnReferenceID, 'Param "ColumnReferenceID" Is required to find data.')
+
+            if (!this.isReady) {
+                this.queue.add(async () => {
+                    resolve(await this.drop(table, columnReferenceID))
+                })
+
+                return
+            }
 
             if (!ExistsTable(this, table)) {
                 throw new Error(`${table} not exists.`)

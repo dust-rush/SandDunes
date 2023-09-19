@@ -1,7 +1,7 @@
 {
     "name": "dunes",
     "description": "Database based on columns and tables created to be simple but useful and efficient in testing, development and production environments.",
-    "version": "0.2.0",
+    "version": "0.2.1",
     "main": "dist/main.js",
     "license": "LGPL-3.0-only",
     "devDependencies": {
