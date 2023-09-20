@@ -2,13 +2,9 @@ import SandDunes from 'main'
 import * as Types from '../types'
 
 export const SchemaValidator = async (schema: Types.Model | undefined, input: any, ORMInstance: SandDunes): Promise<{ valid: boolean, error?: string, cause?: string }> => {
-    console.log(schema)
-    console.log('===========')
-    console.log(input)
     if (typeof input !== 'object' || typeof schema !== 'object') {
         throw new Error('Both Input and Schema must be objects');
     }
-
 
     let response: {
         valid: boolean,
@@ -42,7 +38,7 @@ export const SchemaValidator = async (schema: Types.Model | undefined, input: an
 
         if (value && !column.test(value)) {
             response.valid = false
-            response.error = `Column "${columnName}" types does not match "${column.type}" type.`
+            response.error = `${column.list ? 'List' : 'Column'} "${columnName}" types does not match "${column.type}" type.`
             response.cause = 'COLUMN TYPE INCOMPATIBLE'
 
             return response
@@ -63,7 +59,6 @@ export const SchemaValidator = async (schema: Types.Model | undefined, input: an
 
             return response
         }
-
     }
 
     return response;

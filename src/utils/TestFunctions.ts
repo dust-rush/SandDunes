@@ -52,15 +52,7 @@ const functions: {
                 return false
             }
 
-            let result = true
-
-            for (const item in input) {
-                if (!primitiveTypeTest(item)) {
-                    result = false
-                    break
-                }
-            }
-
+            const result = input.every((item) => primitiveTypeTest(item))
             return result
         }
     }

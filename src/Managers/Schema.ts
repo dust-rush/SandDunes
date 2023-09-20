@@ -23,7 +23,7 @@ const ParseColumns = (columns: Array<string>) => {
                 required: isRequired,
                 unique: isUnique,
                 list: isList,
-                test: (isList ? tests.list(testFunction) : testFunction)
+                test: (isList ? tests.list(tests[type?.[2] || primitiveType]) : testFunction)
             }
             : null
     }
